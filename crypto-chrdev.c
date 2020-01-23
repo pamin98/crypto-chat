@@ -130,8 +130,7 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 		ret = -ENODEV;
 		goto fail;
 	}
-	crof->host_fd = *host_fd;
-	goto success;		
+	crof->host_fd = *host_fd;		
 
 fail:
 	debug("Leaving");
@@ -159,7 +158,7 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	 **/
 	sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
 	sg[0] = &syscall_type_sg;
-	sg_init_one(&host_fd_sg, crof->host_fd, sizeof(crof->host_fd));
+	sg_init_one(&host_fd_sg, &crof->host_fd, sizeof(crof->host_fd));
 	sg[1] = &host_fd_sg;
 
 	spin_lock_irqsave(&crdev->lock, flags);
@@ -212,7 +211,13 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 	cmd_ptr = kzalloc(sizeof(*cmd_ptr), GFP_KERNEL);
 	host_ret = kzalloc(sizeof(*host_ret), GFP_KERNEL);
 	*syscall_type = VIRTIO_CRYPTODEV_SYSCALL_IOCTL;
-
+	src = NULL;
+	dst = NULL;
+	iv = NULL;
+	ses_id = NULL;
+	key = NULL;
+	crypt_operations = NULL;
+	sess = NULL;
 	num_out = 0;
 	num_in = 0;
 	*cmd_ptr = cmd;
@@ -222,10 +227,10 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 	 **/
 	sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
 	sgs[num_out++] = &syscall_type_sg;
-	sg_init_one(&host_fd_sg, crof->host_fd, sizeof(crof->host_fd));
+	sg_init_one(&host_fd_sg, &crof->host_fd, sizeof(crof->host_fd));
 	sgs[num_out++] = &host_fd_sg;
 	sg_init_one(&ioctl_cmd_sg, cmd_ptr, sizeof(*cmd_ptr));
-	sgs[num_out++] = ioctl_cmd_sg;
+	sgs[num_out++] = &ioctl_cmd_sg;
 
 	/**
 	 *  Add all the cmd specific sg lists.
@@ -293,17 +298,17 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		debug("CIOCCRYPT");
 		crypt_operations = kzalloc(sizeof(struct crypt_op), GFP_KERNEL);
 		if(!crypt_operations){
-			debuf("Can't allocate memory for crypt_op");
+			debug("Can't allocate memory for crypt_op");
 			ret = -ENOMEM;
 			goto fail;
 		}
 		if(copy_from_user(crypt_operations, (struct  crypt_op *) arg, sizeof(struct crypt_op))){
-			debuf("copy from user");
+			debug("copy from user");
 			ret = -EFAULT;
 			kfree(crypt_operations);
 			goto fail;
 		}
-		sg_init_one(&crypt_op_sg_, crypt_operations, sizeof(*crypt_operations));
+		sg_init_one(&crypt_op_sg, crypt_operations, sizeof(*crypt_operations));
 		sgs[num_out++] = &crypt_op_sg;
 		src = kzalloc(sizeof(unsigned char) * crypt_operations->len, GFP_KERNEL);
 		if(!src){
@@ -340,7 +345,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		sg_init_one(&iv_sg, iv, sizeof(*iv));
 		sgs[num_out++] = &iv_sg;
 		dst = kzalloc(sizeof(unsigned char) * crypt_operations->len, GFP_KERNEL);
-		if(!iv){
+		if(!dst){
 			debug("Can't allocate memory for dst");
 			kfree(iv);
 			kfree(src);
@@ -404,7 +409,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		debug("CIOCFSESSION");
 		if(*host_ret < 0){
 			debug("Failed to close the session.");
-			ret = -1
+			ret = -1;
 			kfree(ses_id);
 			goto fail;
 		}
