@@ -1,0 +1,18 @@
+fresh install qemu
+cd qemu 3.0.0
+patch -p1 /path /2 qemu blah blah
+make
+make install
+coding time
+(folder host)
+cope paste sto antistoixo arxeio sto qemu 3.0.0
+make + make install
+connect to qemu utopia.sh -device -blah blah
+guest code
+make 
+make install guest
+insmod .ko
+chmod and run dev nodes.sh
+->change to cryptodev0
+->crypto/croptodev.h not found copy cryptodev.h from guest to directory of chat
++ <crypto/cryptodev.h> --> "cryptodev.h"
